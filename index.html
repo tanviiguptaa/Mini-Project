@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0f19">
+  <title>easyPeasy — Study workspace</title>
+  <link rel="icon" type="image/png" href="penguin-logo-cutout.png">
+  <script>tailwind = { config: { darkMode: 'class' } };</script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f2ecff;
+      --surface: #ffffff;
+      --surface-raised: #f8f5ff;
+      --line: #e6ddf5;
+      --ink: #30243c;
+      --muted: #776d88;
+      --lavender: #e0e7ff;
+      --mint: #d1fae5;
+      --peach: #ffedd5;
+      --accent: #8065bd;
+      --accent-strong: #694ca8;
+    }
+    html.dark {
+      color-scheme: dark;
+      --page: #21152f;
+      --surface: #2a1e3a;
+      --surface-raised: #352549;
+      --line: #4a3b5f;
+      --ink: #f6f0ff;
+      --muted: #c0b4d2;
+      --lavender: #c4b5fd;
+      --mint: #6ee7b7;
+      --peach: #fdba74;
+      --accent: #c4b5fd;
+      --accent-strong: #d8b4fe;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      transition: background-color .25s ease, color .25s ease;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .page-shell { width: min(100% - 32px, 896px); margin: 0 auto; padding: 28px 0 56px; }
+    .top-controls { display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 12px; }
+    .brand { display: grid; justify-items: center; gap: 8px; text-align: center; }
+    .brand img { width: 76px; height: 76px; object-fit: contain; filter: drop-shadow(0 8px 14px #887eb11a); animation: penguin-flip 8s ease-in-out infinite; }
+    @keyframes penguin-flip { 0%,34% { transform: rotate(0deg); } 50% { transform: rotate(180deg); } 66%,100% { transform: rotate(360deg); } }
+    .brand h1 { margin: 0; font-size: clamp(26px, 4vw, 34px); font-weight: 850; letter-spacing: -.055em; }
+    .brand p { margin: -4px 0 0; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    .corner-controls { display: flex; align-items: center; gap: 8px; }
+    .corner-controls.right { justify-content: flex-end; }
+    .control-button {
+      display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 8px;
+      border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink);
+      padding: 8px 12px; font-size: 12px; font-weight: 700; box-shadow: 0 3px 12px #2420440a;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .control-button:hover { transform: translateY(-1px); border-color: var(--accent); }
+    .theme-control { width: 40px; padding: 0; color: var(--accent); }
+    .sessions-card, .card, .output-panel, .chat-card, .weak-spots-panel {
+      border: 1px solid var(--line); border-radius: 24px; background: var(--surface);
+      box-shadow: 0 12px 34px #2c24440c;
+    }
+    .dark .sessions-card, .dark .card, .dark .output-panel, .dark .chat-card, .dark .weak-spots-panel {
+      box-shadow: 0 14px 40px #00000020, inset 0 1px #ffffff05;
+    }
+    html:not(.dark) .sessions-card, html:not(.dark) .card { background: linear-gradient(145deg, #ffffff 35%, #f5f2ff); }
+    html:not(.dark) .output-panel { background: linear-gradient(145deg, #ffffff 35%, #fff7ed); }
+    html:not(.dark) .chat-card, html:not(.dark) .weak-spots-panel { background: linear-gradient(145deg, #ffffff 35%, #effcf5); }
+    .sessions-card { margin: 24px 0 18px; padding: 12px 14px; }
+    .sessions-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .sessions-heading span { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+    .sessions-heading button { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); color: var(--accent); font-size: 19px; line-height: 1; }
+    .sessions-list { display: flex; gap: 7px; overflow-x: auto; }
+    .session-item { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; max-width: 240px; border: 1px solid transparent; border-radius: 10px; background: transparent; padding: 7px 9px; color: var(--muted); text-align: left; font-size: 12px; }
+    .session-item:hover, .session-item.active { border-color: var(--line); background: var(--surface-raised); color: var(--ink); }
+    .session-face { color: var(--mint); }
+    .session-title { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .session-delete { color: var(--muted); font-size: 16px; }
+    .content-stack { display: grid; gap: 16px; }
+    .card { padding: clamp(17px, 3vw, 24px); }
+    .section-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .section-icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 14px; background: var(--peach); color: #b86f36; }
+    .dark .section-icon { color: var(--peach); }
+    .section-heading h2, .section-heading h3 { margin: 0; font-size: 16px; font-weight: 800; }
+    .section-heading p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .source-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 12px; }
+    .source-input { width: 100%; min-height: 124px; resize: vertical; border: 1px solid var(--line); border-radius: 15px; background: var(--page); padding: 13px 14px; color: var(--ink); font: inherit; font-size: 13px; line-height: 1.6; outline: none; }
+    .source-input:focus, #chat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+    .source-input::placeholder, #chat-input::placeholder { color: var(--muted); opacity: .8; }
+    #input-file-container { min-width: 190px; min-height: 124px; border: 2px dashed var(--line); border-radius: 15px; background: var(--surface-raised); padding: 16px; text-align: center; }
+    #input-link-container { align-self: stretch; }
+    .source-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+    .source-tab, .budget-pill, .mode-tab {
+      border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted);
+      padding: 8px 13px; font-size: 12px; font-weight: 700; transition: .18s ease;
+    }
+    .budget-pill { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+    .source-tab:hover, .budget-pill:hover, .mode-tab:hover { border-color: var(--accent); color: var(--ink); }
+    .source-tab.active, .budget-pill.active { border-color: var(--accent); background: var(--lavender); color: #51469c; }
+    .dark .source-tab.active, .dark .budget-pill.active { background: #272d49; color: var(--lavender); }
+    .budget-area { display: grid; justify-items: center; gap: 8px; margin-top: 20px; }
+    .budget-label { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .budget-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .budget-pill[data-budget="cram"].active { background: var(--peach); border-color: #f2c99b; color: #9a5c2f; }
+    .budget-pill[data-budget="deep"].active { background: var(--lavender); border-color: #c7d2fe; color: #51469c; }
+    .budget-pill[data-budget="exam"].active { background: var(--mint); border-color: #a7e8ca; color: #28775c; }
+    .dark .budget-pill[data-budget="cram"].active { border-color: #fb923c; background: #392519; color: #fdba74; box-shadow: 0 0 0 1px #fb923c70, 0 0 18px #fb923c35; }
+    .dark .budget-pill[data-budget="deep"].active { color: var(--lavender); }
+    .dark .budget-pill[data-budget="exam"].active { color: var(--mint); }
+    .countdown-badge { border: 1px solid #edc28f; border-radius: 999px; background: #fff7ed; padding: 3px 7px; color: #925b31; font-size: 9px; font-weight: 800; white-space: nowrap; }
+    .dark .countdown-badge { border-color: #a85e26; background: #56391f; color: #fed7aa; }
+    .panic-toolkit { margin-top: 16px; border: 1px solid #f2c99b; border-radius: 20px; background: linear-gradient(140deg, #fff8f0, #fff2df); padding: 16px; }
+    .dark .panic-toolkit { border-color: #67462e; background: linear-gradient(140deg, #1a1d2c, #241d1c); box-shadow: inset 0 1px #fb923c12, 0 0 26px #fb923c0a; }
+    .panic-toolkit-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .panic-toolkit-header h3 { margin: 0; font-size: 14px; font-weight: 850; }
+    .panic-toolkit-header p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .panic-tools-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .panic-tool { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); padding: 12px; }
+    .panic-tool h4 { margin: 0; font-size: 12px; font-weight: 800; }
+    .panic-tool p { margin: 4px 0 10px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .toolkit-action { min-height: 32px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); color: var(--ink); padding: 6px 9px; font-size: 10px; font-weight: 800; transition: .18s ease; }
+    .toolkit-action:hover { border-color: var(--accent); color: var(--accent); }
+    .toolkit-action:disabled { cursor: not-allowed; opacity: .6; }
+    .audio-track-switcher { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 9px; }
+    .audio-track-pill { border: 1px solid var(--line); border-radius: 999px; background: var(--surface-raised); color: var(--muted); padding: 5px 8px; font-size: 9px; font-weight: 800; transition: .18s ease; }
+    .audio-track-pill[aria-pressed="true"] { border-color: #e8ad72; background: #fff1df; color: #925b31; }
+    .dark .audio-track-pill[aria-pressed="true"] { border-color: #fb923c; background: #392519; color: #fdba74; box-shadow: 0 0 12px #fb923c22; }
+    .volume-row { display: grid; width: 100%; grid-template-columns: auto 1fr auto; align-items: center; gap: 7px; margin-top: 10px; color: var(--muted); font-size: 10px; }
+    #calm-volume { width: 100%; accent-color: var(--accent); }
+    .breath-display { display: flex; min-height: 92px; flex: 1; align-items: center; justify-content: center; gap: 13px; width: 100%; }
+    .breath-orb { display: grid; width: 58px; height: 58px; flex: none; place-items: center; border: 1px solid #c7d2fe; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffffff, #e0e7ff 72%); color: #6254b5; font-size: 10px; font-weight: 850; transform: scale(.78); }
+    .dark .breath-orb { border-color: #818cf8; background: radial-gradient(circle at 35% 30%, #353958, #252b44 72%); color: #c7d2fe; box-shadow: 0 0 18px #a5b4fc30; }
+    .breath-orb.breathing-active { animation: breath-pulse 19s linear infinite; }
+    @keyframes breath-pulse { 0%,100% { transform: scale(.78); } 21.05%,57.89% { transform: scale(1.08); } }
+    .breath-phase { min-width: 70px; color: var(--ink); font-size: 11px; font-weight: 800; }
+    .breath-phase span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 600; }
+    .sprint-clock { margin: auto 0 9px; color: var(--accent); font-variant-numeric: tabular-nums; font-size: clamp(26px, 4vw, 34px); font-weight: 850; letter-spacing: .04em; }
+    .sprint-status { min-height: 26px; }
+    .source-actions { display: flex; justify-content: center; margin-top: 15px; }
+    .primary-button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 9px; border: 0; border-radius: 14px; background: var(--accent); color: #fff; padding: 10px 20px; font-weight: 800; box-shadow: 0 7px 18px #8276cd2a; transition: transform .18s ease, filter .18s ease; }
+    .dark .primary-button { color: #101426; }
+    .primary-button:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    .primary-button:disabled { cursor: wait; opacity: .65; transform: none; }
+    .upload-message { min-height: 16px; margin: 8px 0 0; color: var(--muted); font-size: 11px; text-align: center; }
+    .upload-message.error { color: #e87979; }
+    .upload-message.success { color: #389b74; }
+    .workspace { overflow: hidden; }
+    .output-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 18px; }
+    .mode-tab { display: flex; align-items: center; justify-content: center; gap: 7px; border-radius: 13px; padding: 11px 8px; }
+    .mode-tab.active { border-color: #c7d2fe; background: var(--lavender); color: #51469c; }
+    .dark .mode-tab.active { border-color: #49527c; background: #242d47; color: var(--lavender); }
+    .output-panel { position: relative; min-height: 355px; padding: clamp(18px, 3vw, 26px); }
+    .output-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+    .output-toolbar h2 { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: .16em; color: var(--muted); text-transform: uppercase; }
+    .ai-badge { border: 1px solid var(--line); border-radius: 999px; background: var(--surface-raised); padding: 5px 9px; color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+    .empty-state { display: flex; min-height: 265px; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .empty-state-icon { display: grid; width: 64px; height: 64px; place-items: center; margin-bottom: 14px; border-radius: 20px; background: var(--lavender); color: var(--accent); }
+    .empty-state p { margin: 0; }
+    .empty-state .hint { margin-top: 6px; color: var(--muted); font-size: 12px; }
+    .content-copy { color: var(--muted); font-size: 14px; line-height: 1.75; }
+    .content-copy p { margin: 0 0 10px; }
+    .copy-button, .citation-button, .review-button, .step-button { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); padding: 7px 10px; font-size: 11px; font-weight: 750; transition: .18s ease; }
+    .copy-button:hover, .citation-button:hover, .review-button:hover, .step-button:hover { border-color: var(--accent); color: var(--accent); }
+    .section-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+    .section-title-row h3 { margin: 0; font-size: 16px; font-weight: 800; }
+    .flashcard-stage { display: grid; justify-items: center; gap: 16px; }
+    .flashcard-container { width: min(100%, 520px); height: 248px; perspective: 1000px; cursor: pointer; }
+    .flashcard-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .5s ease; }
+    .flashcard-inner.flipped { transform: rotateY(180deg); }
+    .flashcard-face { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--line); border-radius: 22px; background: var(--surface-raised); padding: 22px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .flashcard-face.answer { transform: rotateY(180deg); border-color: #bce7d3; background: var(--mint); }
+    .dark .flashcard-face.answer { border-color: #376954; background: #142a29; }
+    .flashcard-face .eyebrow { color: var(--accent); font-size: 10px; font-weight: 850; letter-spacing: .16em; text-transform: uppercase; }
+    .flashcard-face.answer .eyebrow { color: #328465; }
+    .dark .flashcard-face.answer .eyebrow { color: var(--mint); }
+    .flashcard-face p { margin: auto; max-width: 90%; text-align: center; font-size: 17px; font-weight: 650; line-height: 1.5; }
+    .flashcard-hint { color: var(--muted); font-size: 11px; text-align: center; }
+    .flashcard-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; }
+    .flashcard-counter { min-width: 95px; color: var(--muted); font-size: 11px; text-align: center; }
+    .citation-wrap { width: min(100%, 520px); }
+    .citation-quote { margin: 8px 0 0; border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; background: var(--surface-raised); padding: 10px 12px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .quiz-list { display: grid; gap: 13px; }
+    .quiz-question { border: 1px solid var(--line); border-radius: 17px; background: var(--surface-raised); padding: 16px; }
+    .quiz-question-title { margin: 0 0 12px; font-size: 14px; font-weight: 750; line-height: 1.55; }
+    .quiz-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .quiz-option { border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); padding: 10px 12px; text-align: left; font-size: 12px; line-height: 1.45; }
+    .quiz-option:hover:not(:disabled) { border-color: var(--accent); }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-option.correct { border-color: #5bb997; background: #e8fbf2; color: #256c52; }
+    .quiz-option.incorrect { border-color: #dc2626; background: #fee2e2; color: #991b1b; box-shadow: inset 0 0 0 1px #dc2626; }
+    .dark .quiz-option.correct { background: #14332d; color: var(--mint); }
+    .dark .quiz-option.incorrect { border-color: #f87171; background: #451a1a; color: #fecaca; box-shadow: inset 0 0 0 1px #f87171; }
+    .quiz-explanation { margin: 12px 0 0; border-top: 1px solid var(--line); padding-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .quiz-feedback-correct { color: #15803d; font-weight: 850; }
+    .quiz-feedback-incorrect { color: #b91c1c; font-weight: 850; }
+    .dark .quiz-feedback-correct { color: #86efac; }
+    .dark .quiz-feedback-incorrect { color: #fca5a5; }
+    .quiz-correct-answer, .quiz-answer-explanation { margin: 6px 0 0; }
+    .quiz-correct-answer { color: var(--ink); }
+    .quiz-quote { margin: 8px 0 0; }
+    .quiz-heading-actions { display: flex; align-items: center; gap: 10px; }
+    #quiz-score { color: var(--accent); font-size: 12px; font-weight: 800; }
+    .weak-spots-panel { padding: 20px; }
+    .weak-spots-panel h3 { margin: 0 0 4px; font-size: 16px; }
+    .weak-spots-panel p { color: var(--muted); font-size: 12px; }
+    .weak-items { display: grid; gap: 10px; }
+    .weak-item { border: 1px solid var(--line); border-radius: 14px; background: var(--surface-raised); padding: 14px; }
+    .weak-item h4 { margin: 0 0 5px; font-size: 13px; }
+    .weak-item p { margin: 5px 0; line-height: 1.6; }
+    .chat-card { padding: 20px; }
+    .chat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+    .chat-heading { display: flex; align-items: center; gap: 11px; }
+    .penguin-cutout { display: inline-block; flex: none; width: 42px; height: 42px; border-radius: 12px; background-image: url('penguin-moods.jpg'); background-repeat: no-repeat; background-size: 250px 417px; background-color: var(--surface-raised); box-shadow: 0 4px 12px #9a78901a; }
+    .mood-happy { background-position: -99px -155px; }
+    .mood-thinking { background-position: -50px -196px; }
+    .mood-confused { background-position: -199px -204px; }
+    .mood-encouraging { background-position: 0 -204px; }
+    .chat-heading h3 { margin: 0; font-size: 15px; font-weight: 800; }
+    .chat-heading p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+    .mood-pill { border-radius: 99px; background: var(--mint); padding: 5px 9px; color: #28775c; font-size: 10px; font-weight: 800; }
+    .dark .mood-pill { color: var(--mint); }
+    .chat-messages { display: grid; height: 185px; align-content: start; gap: 9px; overflow: auto; border: 1px solid var(--line); border-radius: 15px; background: var(--page); padding: 12px; }
+    .chat-message { display: flex; max-width: 90%; gap: 8px; }
+    .chat-message.user { margin-left: auto; flex-direction: row-reverse; }
+    .chat-message p { margin: 3px 0 0; border-radius: 11px; background: var(--surface-raised); padding: 8px 10px; color: var(--ink); font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+    .chat-message.user p { background: var(--peach); }
+    .dark .chat-message.user p { color: #593c29; }
+    .chat-user-avatar { display: grid; width: 30px; height: 30px; flex: none; place-items: center; border-radius: 10px; background: var(--lavender); color: #51469c; font-size: 9px; font-weight: 800; }
+    .mood { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+    .chat-empty { display: grid; height: 100%; place-content: center; justify-items: center; color: var(--muted); font-size: 12px; }
+    .chat-empty p { background: transparent; }
+    .chat-input-row { display: flex; gap: 8px; margin-top: 11px; }
+    #chat-input { min-width: 0; flex: 1; border: 1px solid var(--line); border-radius: 12px; background: var(--page); padding: 10px 12px; color: var(--ink); font: inherit; font-size: 12px; outline: none; }
+    .send-button { display: grid; width: 42px; flex: none; place-items: center; border: 0; border-radius: 12px; background: var(--accent); color: #fff; }
+    .dark .send-button { color: #101426; }
+    .splash { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: #21152f; animation: splash-out .65s ease 1.15s forwards; }
+    .splash-inner { text-align: center; animation: rise-in .7s ease both; }
+    .splash img { width: 100px; height: 100px; object-fit: contain; }
+    .splash h1 { margin: 8px 0 0; color: #f1f1f8; font-size: 38px; font-weight: 850; letter-spacing: -.05em; }
+    .splash p { margin: 4px 0 0; color: #a5b4fc; font-size: 12px; }
+    @keyframes splash-out { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+    @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .loading-overlay { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border-radius: inherit; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(5px); }
+    .spinner { width: 30px; height: 30px; border: 3px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin .75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [hidden] { display: none !important; }
+    @media (max-width: 620px) {
+      .page-shell { width: min(100% - 22px, 896px); padding-top: 15px; }
+      .top-controls { grid-template-columns: auto 1fr auto; align-items: start; }
+      .brand { grid-column: 2; grid-row: 1; }
+      .corner-controls { grid-row: 1; padding-top: 3px; }
+      .corner-controls.right { grid-column: 3; }
+      .corner-controls.left { grid-column: 1; }
+      .source-grid { grid-template-columns: 1fr; }
+      #input-file-container { min-height: 90px; }
+      .output-tabs { gap: 5px; }
+      .mode-tab { flex-direction: column; gap: 4px; padding: 9px 3px; font-size: 10px; }
+      .quiz-options { grid-template-columns: 1fr; }
+      .session-item { max-width: 195px; }
+      .panic-tools-grid { grid-template-columns: 1fr; }
+      .panic-tool { min-height: 138px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="splash" class="splash" aria-label="Opening easyPeasy">
+    <div class="splash-inner"><img src="penguin-logo-cutout.png" alt=""><h1>easyPeasy</h1><p>Turn learning into your easiest win.</p></div>
+  </div>
+  <main class="page-shell">
+    <header class="top-controls">
+      <div class="corner-controls left">
+        <button id="theme-toggle-top" class="control-button theme-control" onclick="applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark')" aria-label="Toggle theme"><i data-lucide="sun" class="h-4 w-4"></i></button>
+      </div>
+      <div class="brand">
+        <img src="penguin-logo-cutout.png" alt="easyPeasy penguin logo">
+        <h1>easyPeasy</h1>
+        <p>Your personal study space</p>
+      </div>
+    </header>
+
+    <section class="sessions-card" aria-label="Study sessions">
+      <div class="sessions-heading"><span>Study sessions</span><button onclick="createSession()" aria-label="Start new session">+</button></div>
+      <div id="sessions-list" class="sessions-list"></div>
+    </section>
+
+    <div class="content-stack">
+      <section class="card">
+        <div class="section-heading">
+          <div class="section-icon"><i data-lucide="file-up" class="h-5 w-5"></i></div>
+          <div><h2>Source material</h2><p>Paste, upload, or link your learning material.</p></div>
+        </div>
+        <div class="source-grid">
+          <div id="input-text-container"><textarea id="raw-text-input" class="source-input" placeholder="Paste your lecture notes, textbook excerpt, or article here..."></textarea></div>
+          <div id="input-file-container" class="hidden items-center justify-center">
+            <input type="file" id="file-input" accept=".pdf,image/*" class="hidden" onchange="handleFileSelect(event)">
+            <label for="file-input" class="cursor-pointer text-xs" style="color:var(--muted)"><i data-lucide="upload-cloud" class="mx-auto mb-2 h-6 w-6" style="color:var(--accent)"></i><span id="file-name-label">Upload PDF or image</span></label>
+          </div>
+          <div id="input-link-container" class="hidden"><input id="link-input" type="url" class="source-input" style="min-height:0" placeholder="https://example.com/article"></div>
+        </div>
+        <div class="source-tabs" aria-label="Source type">
+          <button onclick="setSourceTab('text')" id="tab-text" class="source-tab active">Text / Code</button>
+          <button onclick="setSourceTab('file')" id="tab-file" class="source-tab">PDF / Image</button>
+          <button onclick="setSourceTab('link')" id="tab-link" class="source-tab">Web link</button>
+        </div>
+        <div id="upload-message" class="upload-message" role="status" aria-live="polite"></div>
+        <div class="budget-area">
+          <span class="budget-label">Choose your study pace</span>
+          <div class="budget-pills" role="group" aria-label="Study time budget">
+            <button type="button" class="budget-pill" data-budget="cram" aria-pressed="false" onclick="setStudyBudget('cram')">10-Min Panic Cram<span id="cram-countdown-badge" class="countdown-badge" hidden>10-Min High-Yield Sprint</span></button>
+            <button type="button" class="budget-pill active" data-budget="deep" aria-pressed="true" onclick="setStudyBudget('deep')">1-Hour Deep Dive</button>
+            <button type="button" class="budget-pill" data-budget="exam" aria-pressed="false" onclick="setStudyBudget('exam')">University Exam Bank</button>
+          </div>
+        </div>
+        <section id="panic-calm-toolkit" class="panic-toolkit" aria-labelledby="panic-toolkit-title" hidden>
+          <div class="panic-toolkit-header">
+            <div><h3 id="panic-toolkit-title">Panic Calm Toolkit</h3><p>Settle in, breathe, and focus on one sprint at a time.</p></div>
+            <span class="countdown-badge">10-Min High-Yield Sprint</span>
+          </div>
+          <div class="panic-tools-grid">
+            <section class="panic-tool" aria-label="Calm focus audio">
+              <h4>Calm Focus Audio</h4>
+              <p>Generative audio with a slow 8D stereo orbit. Headphones recommended.</p>
+              <div class="audio-track-switcher" role="group" aria-label="Choose an audio track">
+                <button type="button" class="audio-track-pill" data-audio-track="piano" aria-pressed="true" onclick="setCalmAudioTrack('piano')">Soft Ambient Piano</button>
+                <button type="button" class="audio-track-pill" data-audio-track="lofi" aria-pressed="false" onclick="setCalmAudioTrack('lofi')">Lo-Fi Rain Pad</button>
+              </div>
+              <button id="soundscape-toggle" type="button" class="toolkit-action" onclick="toggleCalmSoundscape()" aria-pressed="false">Play Calm Soundscape</button>
+              <label class="volume-row" for="calm-volume"><span>Volume</span><input id="calm-volume" type="range" min="0" max="100" value="80" oninput="setCalmSoundVolume(this.value)"><span id="calm-volume-value">80%</span></label>
+              <span id="soundscape-status" class="sr-only" aria-live="polite"></span>
+            </section>
+            <section class="panic-tool" aria-label="4-7-8 breathing guide">
+              <h4>4-7-8 Breathing</h4>
+              <p>Inhale for 4, hold for 7, and exhale for 8 seconds.</p>
+              <div class="breath-display">
+                <div id="breath-orb" class="breath-orb" aria-hidden="true">Breathe</div>
+                <div id="breath-phase" class="breath-phase" aria-live="polite">Ready<span id="breath-countdown">4s</span></div>
+              </div>
+              <button id="breath-toggle" type="button" class="toolkit-action" onclick="toggleBreathingGuide()" aria-pressed="false">Start breathing guide</button>
+            </section>
+            <section class="panic-tool" aria-label="Ten-minute sprint timer">
+              <h4>10-Minute Sprint</h4>
+              <output id="sprint-countdown" class="sprint-clock" aria-live="off">10:00</output>
+              <p id="sprint-status" class="sprint-status" aria-live="polite">Start when you feel ready.</p>
+              <div class="flex gap-2">
+                <button id="sprint-toggle" type="button" class="toolkit-action" onclick="toggleCramSprint()">Start sprint</button>
+                <button type="button" class="toolkit-action" onclick="resetCramSprint()">Reset</button>
+              </div>
+            </section>
+          </div>
+        </section>
+        <div class="source-actions"><button id="generate-btn" onclick="generateStudyBundle()" class="primary-button"><i data-lucide="sparkles" class="h-4 w-4"></i>Generate Study Bundle</button></div>
+      </section>
+
+      <section class="workspace" aria-label="Study outputs">
+        <nav class="output-tabs" aria-label="Output modes">
+          <button onclick="setOutputTab('summary')" id="out-tab-summary" class="mode-tab active"><i data-lucide="list-checks" class="h-4 w-4"></i>Summary</button>
+          <button onclick="setOutputTab('notes')" id="out-tab-notes" class="mode-tab"><i data-lucide="book-open" class="h-4 w-4"></i>Notes</button>
+          <button onclick="setOutputTab('flashcards')" id="out-tab-flashcards" class="mode-tab"><i data-lucide="layers" class="h-4 w-4"></i>Flashcards</button>
+          <button onclick="setOutputTab('quiz')" id="out-tab-quiz" class="mode-tab"><i data-lucide="help-circle" class="h-4 w-4"></i>Quiz</button>
+        </nav>
+        <section class="output-panel">
+          <div id="loading-spinner" class="loading-overlay" hidden><div class="spinner"></div><p style="margin:0;color:var(--muted);font-size:12px">Building your study bundle…</p></div>
+          <div class="output-toolbar"><h2>Study workspace</h2><div class="quiz-heading-actions"><button id="fix-weak-spots-btn" onclick="generateWeakSpotSet()" class="primary-button" style="min-height:36px;padding:7px 11px;font-size:11px" hidden>Fix My Weak Spots</button><span id="ai-mode-label" class="ai-badge">Local mode</span></div></div>
+          <div id="empty-state" class="empty-state">
+            <div class="empty-state-icon"><i data-lucide="brain-circuit" class="h-8 w-8"></i></div>
+            <p style="font-weight:750">Your study set is ready when you are</p>
+            <p class="hint">Add source material above to create a summary, notes, flashcards, and a quiz.</p>
+          </div>
+          <div id="section-summary" class="hidden">
+            <div class="section-title-row"><h3>Key takeaways</h3><button onclick="copyContent('summary-content')" class="copy-button">Copy</button></div>
+            <div id="summary-content" class="content-copy" style="padding-top:14px"></div>
+          </div>
+          <div id="section-notes" class="hidden">
+            <div class="section-title-row"><h3>Structured study notes</h3><button onclick="copyContent('notes-content')" class="copy-button">Copy</button></div>
+            <div id="notes-content" class="content-copy" style="padding-top:14px;white-space:pre-wrap"></div>
+          </div>
+          <div id="section-flashcards" class="hidden">
+            <div class="section-title-row" style="margin-bottom:18px"><h3>3D flashcards</h3><span id="flashcard-counter" class="flashcard-counter">Card 1 of 1</span></div>
+            <div class="flashcard-stage">
+              <div id="flashcard-container" class="flashcard-container" onclick="flipFlashcard()" role="button" tabindex="0" aria-label="Flip flashcard" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();flipFlashcard()}">
+                <div id="flashcard-inner" class="flashcard-inner">
+                  <div class="flashcard-face"><span class="eyebrow">Question</span><p id="flashcard-q"></p><span class="flashcard-hint">Tap or click to reveal the answer</span></div>
+                  <div class="flashcard-face answer"><span class="eyebrow">Answer</span><p id="flashcard-a"></p><span class="flashcard-hint">Tap or click to turn back</span></div>
+                </div>
+              </div>
+              <div class="flashcard-controls">
+                <button onclick="prevFlashcard()" class="step-button" aria-label="Previous flashcard">← Previous</button>
+                <button id="flashcard-review-btn" onclick="toggleFlashcardReview()" class="review-button">Mark Needs Review</button>
+                <button onclick="nextFlashcard()" class="step-button" aria-label="Next flashcard">Next →</button>
+              </div>
+              <div class="citation-wrap">
+                <button onclick="toggleCitation('flashcard-citation')" class="citation-button">Verify Source</button>
+                <blockquote id="flashcard-citation" class="citation-quote" hidden></blockquote>
+              </div>
+            </div>
+          </div>
+          <div id="section-quiz" class="hidden">
+            <div class="section-title-row" style="margin-bottom:16px">
+              <h3>Practice quiz</h3>
+              <div class="quiz-heading-actions"><span id="quiz-score">Score: -</span></div>
+            </div>
+            <div id="quiz-container" class="quiz-list"></div>
+          </div>
+        </section>
+      </section>
+
+      <section id="weak-spots-panel" class="weak-spots-panel" hidden>
+        <div class="section-title-row"><div><h3>Weak-spot practice</h3><p style="margin:4px 0 0">A smaller, more focused set built around the ideas you want to revisit.</p></div><span id="weak-spots-mode" class="ai-badge"></span></div>
+        <div id="weak-spots-content" class="weak-items" style="margin-top:14px"></div>
+      </section>
+
+      <section class="chat-card">
+        <div class="chat-header">
+          <div class="chat-heading"><span class="assistant-avatar penguin-cutout mood-happy" aria-label="Happy penguin assistant"></span><div><h3>Study buddy</h3><p>Your saved AI chat session</p></div></div>
+          <span class="mood-pill">● online</span>
+        </div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-row"><input id="chat-input" onkeydown="if(event.key==='Enter')sendChatMessage()" placeholder="Ask your study buddy..." aria-label="Ask your study buddy"><button onclick="sendChatMessage()" class="send-button" aria-label="Send message"><i data-lucide="send" class="h-4 w-4"></i></button></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    const savedTheme = localStorage.getItem('easyPeasy-theme') || 'dark';
+    function applyTheme(theme) {
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+      localStorage.setItem('easyPeasy-theme', theme);
+      document.getElementById('theme-toggle-top').innerHTML = `<i data-lucide="${theme === 'dark' ? 'sun' : 'moon'}" class="h-4 w-4"></i>`;
+      if (window.lucide) lucide.createIcons();
+    }
+    applyTheme(savedTheme);
+    setTimeout(() => document.getElementById('splash')?.remove(), 1800);
+  </script>
+</body>
+</html>
